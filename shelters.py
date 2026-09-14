@@ -22,11 +22,12 @@ script. Delete that file to re-discover places.
 """
 
 import json
+import os
 import re
 import sys
 import time
 import urllib.request
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -50,6 +51,15 @@ DAYS = 100          # columns to draw; anything past a site's window is greyed
 PORT = 8765
 POLITE = 0.4        # seconds between requests to their server
 UA = {"User-Agent": "amager-shelter-check/2.0 (personal use)"}
+
+# Set by GitHub Actions. Empty for a local build, which leaves the rebuild
+# link and its status polling out of the page entirely -- so `python3
+# shelters.py` on your own machine produces exactly what it always did.
+REPO = os.environ.get("GITHUB_REPOSITORY", "")
+RUN_ID = os.environ.get("GITHUB_RUN_ID", "")
+# "owner/repo/.github/workflows/build.yml@refs/heads/main" -> "build.yml"
+WORKFLOW = (os.environ.get("GITHUB_WORKFLOW_REF", "").split("@")[0]
+            .rsplit("/", 1)[-1]) or "build.yml"
 
 
 # ---------------------------------------------------------------- fetching
@@ -175,12 +185,23 @@ h1{margin:0;font-size:21px;font-weight:600}
   font-family:ui-monospace,"SF Mono",Menlo,monospace}
 .sw{display:inline-block;width:11px;height:11px;border-radius:2px;
   vertical-align:-1px;margin-right:5px}
-button#refresh{font:inherit;font-size:11.5px;letter-spacing:.06em;
+button#refresh,a#rebuild{font:inherit;font-size:11.5px;letter-spacing:.06em;
   text-transform:uppercase;background:var(--panel);color:var(--ink);
   border:1px solid var(--line);border-radius:3px;padding:8px 15px;
-  cursor:pointer;-webkit-tap-highlight-color:transparent}
-button#refresh:hover{border-color:var(--free);color:var(--free)}
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  text-decoration:none;display:inline-block}
+button#refresh:hover,a#rebuild:hover{border-color:var(--free);color:var(--free)}
 button#refresh[disabled]{opacity:.5;cursor:progress}
+#age{color:var(--dim)}
+#age.stale{color:var(--accent)}
+#status:not(:empty){color:var(--accent)}
+#status.live::before{content:"";display:inline-block;width:7px;height:7px;
+  border-radius:50%;background:var(--accent);margin-right:6px;
+  vertical-align:1px;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){
+  #status.live::before{animation:none}
+}
 
 .wrap{overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px}
 table{border-collapse:separate;border-spacing:0;font-size:12px}
@@ -274,6 +295,78 @@ document.getElementById('refresh').addEventListener('click', async function(){
 });
 """
 
+STATUS_JS = """
+(function(){
+  var cfg = window.__BUILD__ || {};
+  var age = document.getElementById('age');
+  var box = document.getElementById('status');
+
+  // How old the data is. The page has no schedule behind it, so this is the
+  // number that decides whether to trust what you are looking at.
+  if (age && cfg.built) {
+    var mins = Math.round((Date.now() - new Date(cfg.built)) / 60000);
+    var t = mins < 2 ? 'just now'
+          : mins < 60 ? mins + ' minutes ago'
+          : mins < 120 ? 'an hour ago'
+          : mins < 2880 ? Math.round(mins / 60) + ' hours ago'
+          : Math.round(mins / 1440) + ' days ago';
+    age.textContent = '\\u00b7 ' + t;
+    if (mins > 4320) age.className = 'stale';   // older than three days
+  }
+
+  if (!cfg.repo || !box) return;
+  var api = 'https://api.github.com/repos/' + cfg.repo + '/actions/runs?per_page=1';
+  var timer = null, until = 0;
+
+  function show(text, live){
+    box.textContent = text;
+    box.className = live ? 'live' : '';
+  }
+  function watch(mins){
+    until = Date.now() + mins * 60000;
+    if (!timer) timer = setInterval(check, 15000);
+  }
+  function stop(){
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  function check(){
+    if (timer && Date.now() > until) { stop(); show('', false); return; }
+    // Public endpoint, no token: this only ever reads run status on a public
+    // repo. Unauthenticated calls are capped at 60/hour per IP, hence the
+    // 15s interval and the hard stop above.
+    fetch(api, {headers: {Accept: 'application/vnd.github+json'}, cache: 'no-store'})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        var run = j && j.workflow_runs && j.workflow_runs[0];
+        if (!run) return;
+        if (run.status !== 'completed') {
+          show('rebuilding\\u2026', true);
+          watch(10);
+        } else if (String(run.id) !== String(cfg.run)) {
+          // A newer run than the one that built this page has finished, so
+          // what we are showing is out of date. Pages needs a moment to
+          // serve the new deploy.
+          show('updated \\u2014 reloading\\u2026', true);
+          stop();
+          setTimeout(function(){ location.reload(); }, 3000);
+        }
+      })
+      .catch(function(){ /* offline or rate-limited: say nothing */ });
+  }
+
+  var link = document.getElementById('rebuild');
+  if (link) link.addEventListener('click', function(){
+    show('waiting for the run\\u2026', true);
+    watch(10);
+  });
+
+  // One call on load, so a rebuild started elsewhere -- the GitHub mobile
+  // app, another tab -- is picked up without touching anything here.
+  check();
+})();
+"""
+
 MONTHS = ["January", "February", "March", "April", "May", "June",
           "July", "August", "September", "October", "November", "December"]
 DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -321,6 +414,7 @@ def render(ps, avail, fetched_at, serve_mode):
 
     h.append('<header><h1>Shelters on Amager</h1>')
     h.append(f'<div class="sub">{len(ps)} sites \u00b7 fetched {esc(fetched_at)} '
+             f'<span id="age"></span> '
              f'\u00b7 shelters bookable to {horizon.isoformat()}</div>')
     h.append('<div class="bar">'
              '<span><span class="sw" style="background:var(--freewe)"></span>'
@@ -331,6 +425,13 @@ def render(ps, avail, fetched_at, serve_mode):
              'border:1px solid var(--line)"></span>not open yet</span>')
     if serve_mode:
         h.append('<button id="refresh">Refresh</button>')
+    elif REPO:
+        # A published page is static and cannot scrape anything itself, so
+        # "rebuild" means: go and start the workflow. The page then watches
+        # for that run to finish and reloads itself.
+        h.append(f'<a id="rebuild" target="_blank" rel="noopener" '
+                 f'href="https://github.com/{REPO}/actions/workflows/{WORKFLOW}">'
+                 f'Rebuild</a><span id="status"></span>')
     h.append('</div></header>')
 
     # ---------- wide (desktop): sites down, days across ----------
@@ -404,6 +505,11 @@ def render(ps, avail, fetched_at, serve_mode):
              'daily-booking sites only.</footer>')
     if serve_mode:
         h.append('<script>' + REFRESH_JS + '</script>')
+    else:
+        cfg = {"repo": REPO, "run": RUN_ID,
+               "built": datetime.now(timezone.utc).isoformat()}
+        h.append('<script>window.__BUILD__=' + json.dumps(cfg) + ';'
+                 + STATUS_JS + '</script>')
     h.append('</body></html>')
     return "".join(h)
 
