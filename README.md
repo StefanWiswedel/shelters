@@ -52,9 +52,14 @@ it not be indexed, a private repo with Pages requires a paid plan.
   don't build anything time-critical on it.
 - **Scheduled workflows get disabled after 60 days without repo activity.**
   GitHub emails you first. A push or a manual run resets the clock.
-- **`amager-places.json` caches the site IDs and booking windows.** It's
-  re-discovered automatically once it's 30 days old, so a newly added shelter
-  shows up within a month. Delete it to force a re-scan now.
+- **`amager-places.json` caches the site IDs and booking windows.** Running
+  locally, it's re-discovered automatically once the file is 30 days old, so a
+  newly added shelter shows up within a month. Delete it to force a re-scan now.
+  In Actions that ageing never happens — `actions/checkout` gives every file a
+  fresh mtime on each run, so the cache always looks new and the site list is
+  never re-scanned on its own. To refresh it there, run the workflow manually
+  and tick **Re-scan the site list**; the run re-discovers and commits the
+  updated file back.
 - **Be reasonable with the scheduling.** Each build is roughly 20 requests to
   their server. Twice a day is neighbourly; every five minutes is not, and
   it's their booking system for the whole country.

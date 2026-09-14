@@ -10,8 +10,14 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      rediscover:
+        description: "Re-scan the site list (slower, ~40 requests) and commit the refreshed cache"
+        type: boolean
+        default: false
 
-# Read the repo, publish to Pages. Nothing is written back to the repository.
+# Default for every job: read-only. The build job widens this to contents:
+# write for the cache commit-back; deploy inherits the Pages scopes here.
 permissions:
   contents: read
   pages: write
@@ -26,6 +32,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Job-level permissions REPLACE the top-level block rather than merging,
+    # so this job gets contents:write and nothing else. It never touches Pages.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -35,6 +45,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      # Only on a manual run with the box ticked. shelters.py re-discovers
+      # whenever the cache is missing, so deleting it is the whole trigger.
+      #
+      # inputs.rediscover is a real boolean because the input is declared
+      # type: boolean. Do NOT switch this to github.event.inputs.rediscover,
+      # which is the *string* "false" on an unticked run -- and a non-empty
+      # string is truthy, so it would re-discover on every manual run.
+      - name: Drop cached site list
+        if: ${{ inputs.rediscover == true }}
+        run: rm -f amager-places.json
 
       - name: Build site/index.html
         shell: bash
@@ -57,6 +78,22 @@ jobs:
             exit 1
           fi
       # ---- end optional guard ---------------------------------------------
+
+      # Runs after the guard, so a broken scrape can never commit a bad cache.
+      # [skip ci] stops this push from triggering another full build.
+      - name: Commit refreshed site list
+        if: ${{ inputs.rediscover == true }}
+        shell: bash
+        run: |
+          if git diff --quiet -- amager-places.json; then
+            echo "site list unchanged, nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add amager-places.json
+          git commit -m "Refresh cached shelter site list [skip ci]"
+          git push origin HEAD:main
 
       - uses: actions/upload-pages-artifact@v3
         with:
