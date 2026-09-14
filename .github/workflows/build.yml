@@ -1,0 +1,73 @@
+name: Build shelter page
+
+on:
+  schedule:
+    # Twice a day, ~20 requests to book.naturstyrelsen.dk per run.
+    # 05:37 / 17:37 UTC is about 07:37 / 19:37 in Copenhagen in summer,
+    # an hour earlier in winter. Deliberately off the hour: GitHub delays
+    # runs scheduled at :00 the most, because everyone picks :00.
+    - cron: "37 5,17 * * *"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Read the repo, publish to Pages. Nothing is written back to the repository.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One publish at a time. A queued run replaces an older queued one, but a
+# publish already in flight is left to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Standard library only, so this installs nothing -- it just pins the
+      # interpreter so builds don't drift when GitHub changes the runner
+      # image. Safe to delete; the runner's own python3 works fine.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build site/index.html
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 shelters.py site 2>&1 | tee build.log
+
+      # ---- optional guard, delete this step if you don't want it ----------
+      # shelters.py logs a failed fetch and carries on, so if the endpoint
+      # blocks or moves, the build still exits 0 and publishes a page showing
+      # every night as free. This fails the run only when *every* probe
+      # failed (2 per site), which is never a legitimate result.
+      - name: Fail if every fetch failed
+        shell: bash
+        run: |
+          sites=$(sed -n 's/^\([0-9][0-9]*\) bookable daily sites.*/\1/p' build.log)
+          fails=$(grep -c "fetch failed" build.log || true)
+          if [ -n "$sites" ] && [ "$fails" -ge "$((sites * 2))" ]; then
+            echo "::error::all $fails booking requests failed - refusing to publish an all-free page"
+            exit 1
+          fi
+      # ---- end optional guard ---------------------------------------------
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
