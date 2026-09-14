@@ -37,21 +37,23 @@ Still only on that machine, and only updates while it's awake.
 Put `shelters.py` in a repo, `build.yml` at `.github/workflows/build.yml`,
 then in the repo: **Settings → Pages → Source: GitHub Actions**.
 
-Every run builds into `site/` and publishes. The workflow triggers on a
-schedule, on push, and via **Actions → Build shelter page → Run workflow**
-for a manual rebuild — which is your Refresh button from anywhere, including
-the GitHub mobile app.
+Every run builds into `site/` and publishes. There is no schedule: the
+workflow runs on push, and on demand via **Actions → Build shelter page →
+Run workflow** — which is your Refresh button from anywhere, including the
+GitHub mobile app. A run takes about a minute; reload the page afterwards
+and check the `fetched` timestamp in the header has moved.
 
 Public repo means a public URL. Nothing sensitive here, but if you'd rather
 it not be indexed, a private repo with Pages requires a paid plan.
 
 ## Things worth knowing
 
-- **GitHub's cron is best-effort.** Scheduled runs are frequently delayed by
-  10–30 minutes and occasionally skipped entirely under load. Fine for this;
-  don't build anything time-critical on it.
-- **Scheduled workflows get disabled after 60 days without repo activity.**
-  GitHub emails you first. A push or a manual run resets the clock.
+- **The page only updates when you ask it to.** There is no schedule, so
+  whatever it shows is from the last run — check the `fetched` timestamp in
+  the header before trusting it. This is deliberate: a cron would hit their
+  booking system twice a day to refresh a page that gets read every few
+  weeks, and GitHub disables scheduled workflows after 60 days without repo
+  activity, so it would eventually switch itself off and go quietly stale.
 - **`amager-places.json` caches the site IDs and booking windows.** Running
   locally, it's re-discovered automatically once the file is 30 days old, so a
   newly added shelter shows up within a month. Delete it to force a re-scan now.
@@ -60,9 +62,10 @@ it not be indexed, a private repo with Pages requires a paid plan.
   never re-scanned on its own. To refresh it there, run the workflow manually
   and tick **Re-scan the site list**; the run re-discovers and commits the
   updated file back.
-- **Be reasonable with the scheduling.** Each build is roughly 20 requests to
-  their server. Twice a day is neighbourly; every five minutes is not, and
-  it's their booking system for the whole country.
+- **Be reasonable if you ever add a schedule back.** Each build is roughly 20
+  requests to their server, or about 40 with **Re-scan the site list** ticked.
+  Twice a day is neighbourly; every five minutes is not, and it's their
+  booking system for the whole country.
 - **The greying of dates past the booking window is computed at build time**,
   so a page that hasn't rebuilt in a week shows a stale boundary.
 

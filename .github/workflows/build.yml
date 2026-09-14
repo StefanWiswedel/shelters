@@ -1,12 +1,11 @@
 name: Build shelter page
 
+# On demand only. There is deliberately no schedule: the page is checked
+# every few weeks, not daily, so a cron would spend ~40 requests a day on
+# their booking system to keep a page nobody is reading up to date. It would
+# also be switched off on its own -- GitHub disables scheduled workflows
+# after 60 days without repo activity -- and fail quietly from then on.
 on:
-  schedule:
-    # Twice a day, ~20 requests to book.naturstyrelsen.dk per run.
-    # 05:37 / 17:37 UTC is about 07:37 / 19:37 in Copenhagen in summer,
-    # an hour earlier in winter. Deliberately off the hour: GitHub delays
-    # runs scheduled at :00 the most, because everyone picks :00.
-    - cron: "37 5,17 * * *"
   push:
     branches: [main]
   workflow_dispatch:
