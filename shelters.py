@@ -503,13 +503,14 @@ def render(ps, avail, fetched_at, serve_mode):
     h.append('<footer>Data: book.naturstyrelsen.dk (state land only) \u00b7 '
              '\u201cfree\u201d = not booked in the system \u00b7 '
              'daily-booking sites only.</footer>')
+    # STATUS_JS runs in both modes: it fills in the "how old is this" label
+    # either way, and skips the polling on its own when there is no repo.
+    cfg = {"repo": "" if serve_mode else REPO, "run": RUN_ID,
+           "built": datetime.now(timezone.utc).isoformat()}
+    h.append('<script>window.__BUILD__=' + json.dumps(cfg) + ';'
+             + STATUS_JS + '</script>')
     if serve_mode:
         h.append('<script>' + REFRESH_JS + '</script>')
-    else:
-        cfg = {"repo": REPO, "run": RUN_ID,
-               "built": datetime.now(timezone.utc).isoformat()}
-        h.append('<script>window.__BUILD__=' + json.dumps(cfg) + ';'
-                 + STATUS_JS + '</script>')
     h.append('</body></html>')
     return "".join(h)
 
