@@ -1,0 +1,5 @@
+site/
+amager-shelters.html
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,83 @@
+[
+ {
+  "id": 384,
+  "title": "Kalvebod Fælled, Fasanskoven, shelter ved Birkedammen",
+  "type": "Shelter",
+  "uri": "kalvebod-faelled-fasanskoven-shelter-ved-birkedammen",
+  "lat": 55.6117487382713,
+  "lng": 12.5171083431014,
+  "window_days": 91
+ },
+ {
+  "id": 223,
+  "title": "Kalvebod Fælled, Pinseskoven, Bekkasinen shelter",
+  "type": "Shelter",
+  "uri": "kalvebod-faelled-pinseskoven-bekkasinen-shelter",
+  "lat": 55.594918524,
+  "lng": 12.553662737,
+  "window_days": 91
+ },
+ {
+  "id": 386,
+  "title": "Kalvebod Fælled, Pinseskoven, shelter nær Svenskeholmvej",
+  "type": "Shelter",
+  "uri": "kalvebod-faelled-pinseskoven-shelter-naer-svenskeholmvej",
+  "lat": 55.5943524507446,
+  "lng": 12.5601594066416,
+  "window_days": 91
+ },
+ {
+  "id": 387,
+  "title": "Kalvebod Fælled, Pinseskoven, shelter ved Ellevehøjevej",
+  "type": "Shelter",
+  "uri": "kalvebod-faelled-pinseskoven-shelter-ved-ellevehoejevej",
+  "lat": 55.5830701914147,
+  "lng": 12.5531959816114,
+  "window_days": 91
+ },
+ {
+  "id": 382,
+  "title": "Kalvebod Fælled, Pinseskoven, shelter ved Hejresøen",
+  "type": "Shelter",
+  "uri": "kalvebod-faelled-pinseskoven-shelter-ved-hejresoeen",
+  "lat": 55.5769906227814,
+  "lng": 12.5565539607891,
+  "window_days": 91
+ },
+ {
+  "id": 383,
+  "title": "Kalvebod Fælled, Pinseskoven, shelter ved Kanalvej",
+  "type": "Shelter",
+  "uri": "kalvebod-faelled-pinseskoven-shelter-ved-kanalvej",
+  "lat": 55.592989909036,
+  "lng": 12.565524280071,
+  "window_days": 91
+ },
+ {
+  "id": 385,
+  "title": "Kalvebod Fælled, Pinseskoven, shelter ved Ottehøjevej",
+  "type": "Shelter",
+  "uri": "kalvebod-faelled-pinseskoven-shelter-ved-ottehoejevej",
+  "lat": 55.5942795696297,
+  "lng": 12.5515213113484,
+  "window_days": 91
+ },
+ {
+  "id": 224,
+  "title": "Kalvebod Fælled, Pinseskoven, Ålen shelter",
+  "type": "Shelter",
+  "uri": "kalvebod-faelled-pinseskoven-aalen-shelter",
+  "lat": 55.5869005432839,
+  "lng": 12.5489348173336,
+  "window_days": 91
+ },
+ {
+  "id": 522,
+  "title": "Kongelunden, Shelter Længestehøj",
+  "type": "Shelter",
+  "uri": "kongelunden-shelter-laengestehoej",
+  "lat": 55.5677130026351,
+  "lng": 12.593409014098,
+  "window_days": 91
+ }
+]
